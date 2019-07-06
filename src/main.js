@@ -1,13 +1,27 @@
 import Vue from 'vue/dist/vue.js'
 import App from './App.vue'
 import VueRouter from 'vue-router';
-import f1 from './components/f1';
-import f2 from './components/f2';
+// import f1 from './components/f1';
+// import f2 from './components/f2';
 
-const Index = { template: '<div>foo</div>' }
+const Index = { template: '<div>Index</div>' }
 const routes = [
-  { path: '/f1', component: f1 },
-  { path: '/f2', component: f2 },
+  {
+    path: '/f1',
+    name: 'f1',
+    // component: f1,
+    meta: {
+      iframe: true
+    }
+  },
+  {
+    path: '/f2',
+    name: 'f2',
+    // component: f2,
+    meta: {
+      iframe: true
+    }
+  },
   {
     path: '/index',
     component: Index
