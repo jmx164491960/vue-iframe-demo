@@ -1,14 +1,16 @@
 <template>
     <div>
+        <!-- Vue的router-view -->
         <keep-alive>
-        <router-view></router-view>
+            <router-view></router-view>
         </keep-alive>
 
+        <!-- iframe页 -->
         <component
-            v-for="com in hasOpenComponentsArr"
-            :key="com.name"
-            :is="com.name"
-            v-show="$route.path === com.path"
+            v-for="item in hasOpenComponentsArr"
+            :key="item.name"
+            :is="item.name"
+            v-show="$route.path === item.path"
         ></component>
     </div>
 </template>
@@ -33,38 +35,41 @@ export default {
     },
     watch: {
         $route() {
+            // 判断当前路由是否iframe页
             this.isOpenIframePage();
         }
     },
     computed: {
+        // 实现懒加载，只渲染已经打开过（hasOpen:true）的iframe页
         hasOpenComponentsArr() {
             return this.componentsArr.filter(item => item.hasOpen);
         }
     },
     methods: {
-        isOpenIframePage(a) {
+        // 根据当前路由设置hasOpen
+        isOpenIframePage() {
             const target = this.componentsArr.find(item => {
                 return item.path === this.$route.path
             });
-            if (target) {
+            if (target && !target.hasOpen) {
                 target.hasOpen = true;
             }
         },
+        // 遍历路由的所有页面，把含有iframeComponent标识的收集起来
         getComponentsArr() {
             const router = this.$router;
             const routes = router.options.routes;
             const iframeArr = routes.filter(item => item.iframeComponent);
-            let componentsArr = [];
-            iframeArr.forEach((item) => {
+            
+            return iframeArr.map((item) => {
                 const name = item.name || item.path.replace('/', '');
-                componentsArr.push({
+                return {
                     name: name,
                     path: item.path,
-                    hasOpen: false,
-                    component: item.iframeComponent
-                });
+                    hasOpen: false, // 是否打开过，默认false
+                    component: item.iframeComponent // 组件文件的引用
+                };
             });
-            return componentsArr;
         }
     }
 }
