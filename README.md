@@ -1,15 +1,15 @@
 ## 前言
-最近需要在Vue中加入含有iframe的页面，同时在切换路由的过程中，保持iframe的状态。一开始直接使用了keep alive发现没有用，于是自己研究了一下解决方案。。。。。。
+最近一个需求，需要在**Vue**项目中加入**含有iframe**的页面，同时在路由切换的过程中，要求iframe的内容**不会被刷新**。一开始使用了Vue自带的keep- alive发现没有用，于是自己研究了一下解决方案。。。。。。
 
 ## Vue的keep-alive原理
-要实现对保持含有iframe页面的状态。我们先搞清楚为什么Vue的keep-alive不能对含有iframe的页面凑效。keep-alive组件把DOM的节点信息保留在了VNode（在内存里），在需要渲染的时候再从Vnode渲染到真实DOM上。iframe网页里的内容并不属于节点的信息，所以keep-alive对其是无效的。如果把整个iframe节点保存起来，然后需要切换的时候把渲染到目标父节点上，能否实现iframe状态的保持呢？——也是不可行的，iframe每一次渲染就相当于打开一个新的网页窗口，即使把节点保存下来，渲染的时候还是iframe内的内容还是重新加载的。
+要实现对保持iframe页的状态。我们先搞清楚为什么Vue的keep-alive不能凑效。keep-alive原理是把组件里的节点信息保留在了**VNode**（在内存里），在需要渲染时候从Vnode渲染到真实DOM上。iframe页里的内容并不属于节点的信息，所以使用keep-alive依然会重新渲染iframe内的内容。**另外**，我也尝试有过想法：如果把整个iframe节点保存起来，然后需要切换时把它渲染到目标节点上，能否实现iframe页不被刷新呢？————也是不可行的，iframe每一次渲染就相当于打开一个新的网页窗口，即使把节点保存下来，在渲染时iframe页还是刷新的。
 
 ## 实现的思路
-既然iframe的状态保持很难实现，在这个时候我想到了一个别的方法。能否在Vue的route-view节点上动点手脚，使得在切换非iframe页的时候使用Vue的路由，当切换iframe页的时候则使用v-show实现显示与隐藏，使得iframe节点一直不被删除，这样就能保持iframe的状态了。
+既然保持iframe页里的状态很难实现，在这个时候我想到了一个别的方法。能否在Vue的route-view节点上动点手脚？使得在切换**非iframe页**的时候使用Vue的路由，当切换**iframe页**时则使用**v-show**切换显示与隐藏，使得iframe节点**一直不被删除**，这样就能保持iframe的状态了。
 
-我们简陋的实现以下以上的效果，上代码：
+我们简陋的实现一下以上的效果，上代码：
 
-main.js:
+入口main.js:
 ```
 import Vue from 'vue/dist/vue.js'
 import App from './App.vue'
@@ -36,7 +36,6 @@ const routes = [
 const router = new VueRouter({
   routes
 });
-Vue.config.productionTip = false
 
 Vue.use(VueRouter);
 new Vue({
@@ -80,26 +79,22 @@ export default {
 }
 </script>
 ```
-上面代码简单来说，关键的地方首先是main.js设置路由的时候，不要对含有iframe填写属性component，这样页面就是空白的。然后我们再在router-view节点隔壁渲染我们的iframe页组件，同时用$route.path当前路由指向哪一个页面，实现对iframe页的显示隐藏。
+上面代码简单来说，关键的地方首先是main.js初始化路由时，对iframe页不填写属性component，这样页面就是空白的。然后在**router-view**节点旁边渲染iframe页组件，使用$route.path判断当前路由的指向，控制iframe页的**显示与隐藏**。
 
-上面的代码比较简陋：
-1. iframe页在根节点一渲染的时候就已经渲染出来了，这里我们可以做成懒加载，只有在进入对应页面了才渲染，渲染一次之后用v-show切换显示与隐藏
-2. 上面的实现，每增加一个iframe页都要增加一段组件的引入注册和调用的代码。比较繁琐。我们目标应该做到每增加一个iframe页，只需要修改一个参数。这里思路是：
-    1. 在router配置中定义一个变量，标识该页面是否含有iframe的页面
-    2. 根据标识，包含iframe的组件动态注册和渲染，无需再手写额外的代码
-    3. router-view和iframe切换的逻辑封装成新组件，用它替代原有的router-view
+上面代码简单的解决了问题，但还有一些地方可以优化：
+1. iframe页在根节点App.vue一渲染时**已经渲染**了，对此iframe页可以做成**懒加载**，只有在进入过相应页面了触发渲染，并且渲染过之后就用v-show切换显示与隐藏
+2. 每当增加一个iframe页都要增加一段的组件引入注册和调用的代码。比较**繁琐**。我们目标应该做到每增加一个iframe页，只需要添加尽量少的代码。这里思路是：
+    1. 在路由配置中定义一个属性，用于**标识该页面是否含有iframe**的页面
+    2. 根据标识，iframe页组件**自动动态注册和渲染**，无需再手写额外的代码
+    3. router-view和iframe切换的逻辑封装成**新组件**，用它**替代原有的router-view**
 
 我们先修改router的配置,增加一个属性名iframeComponent，用于标识是否包含iframe，该属性的值是组件文件引用
 
 main.js:
 ```
-import Vue from 'vue/dist/vue.js'
-import App from './App.vue'
-import VueRouter from 'vue-router';
 import F1 from './components/f1';
 import F2 from './components/f2';
 
-const Index = { template: '<div>Index</div>' }
 const routes = [
   {
     path: '/f1',
@@ -113,22 +108,14 @@ const routes = [
   },
   {
     path: '/index',
-    component: Index,
-    children: [
-      {
-        path: '/f3',
-        iframe: true
-      }
-    ]
+    component: { template: '<div>Index</div>' }
   }
 ]
 
 const router = new VueRouter({
   routes // （缩写）相当于 routes: routes
 });
-Vue.config.productionTip = false
 
-Vue.use(VueRouter);
 new Vue({
   render: h => h(App),
   router
@@ -223,4 +210,4 @@ export default {
 
 ## 结语
 大家如果有更好的实现方法，或者我上面还有什么需要更正的错误，欢迎交流。
-上面demo的代码放在了github 
+上面demo的代码放在了个人github上[https://github.com/jmx164491960/vue-iframe-demo](https://github.com/jmx164491960/vue-iframe-demo)
